@@ -1,0 +1,17 @@
+{
+  "name": "jacobs-year-percentage",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "css": "tailwindcss -i ./src/input.css -o ./public/static/main.css --watch"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.4",
+    "hono": "^4.6.20",
+    "tailwindcss": "^4.0.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250204.0",
+    "wrangler": "^3.101.0"
+  }
+}
