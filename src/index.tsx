@@ -1,7 +1,56 @@
 import { Hono } from "hono";
 import type { FC } from "hono/jsx";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { fromError } from "zod-validation-error";
+import { swaggerUI } from "@hono/swagger-ui";
 
-const app = new Hono();
+const app = new OpenAPIHono();
+
+const precisionSchema = z.object({
+  precision: z.coerce
+    .number({ coerce: true, message: "Must be a valid number" })
+    .min(0, "Must be greater than 0")
+    .max(50, "Must be less than 50")
+    .optional(),
+});
+
+const ErrorSchema = z.object({
+  code: z.number().openapi({
+    example: 400,
+  }),
+  message: z.string().openapi({
+    example: "Bad Request",
+  }),
+});
+
+const route = createRoute({
+  method: "get",
+  path: "/api",
+  request: {
+    query: precisionSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({ percentage: z.string() }),
+        },
+      },
+      description: "Retrieve the percentage of the year passed",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorSchema,
+        },
+      },
+      description: "Returns an error",
+    },
+    500: {
+      description: "Internal Server Error",
+    },
+  },
+});
 
 function getPercentageOfYearPassed(precision: number | string | undefined = 2) {
   const precisionNumber = Number(precision);
@@ -59,9 +108,40 @@ app.get("/", (c) => {
   return c.html(<Content />);
 });
 
-app.get("/api", (c) => {
-  const precision = c.req.query("precision");
-  return c.json({ percentage: getPercentageOfYearPassed(precision) });
+// app.get("/api", (c) => {
+//   const precision = c.req.query("precision");
+//   return c.json({ percentage: getPercentageOfYearPassed(precision) });
+// });
+
+app.openapi(
+  route,
+  (c) => {
+    const { precision } = c.req.valid("query");
+    return c.json({ percentage: getPercentageOfYearPassed(precision) });
+  },
+  (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          code: 400,
+          message: fromError(result.error).toString(),
+        },
+        400,
+      );
+    }
+
+    return c.text("Internal server error", 400);
+  },
+);
+
+app.doc("/api/doc", {
+  openapi: "3.0.0",
+  info: {
+    version: "0.0.1-alpha",
+    title: "Jacob's Year Percentage",
+  },
 });
+
+app.get("/doc", swaggerUI({ url: "/api/doc" }));
 
 export default app;
